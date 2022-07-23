@@ -16,19 +16,12 @@ Regardless of the language, you'll primarily use 4 lines of code in order.
 What's great about this approach is say you have a table represented as a list of dictionaries. If you'd want to add a calculated column that is some expression based on other row values, you can create the new column easily.
 
 **Example in python**
-
+```python
 tbl = [{'a': 1, 'b': 2},{'a': 3, 'b': 4},{'a': 5, 'b': 6}]
-
 expression = '[a]+2*[b]'
-
 tokens = tokenizeExpression(expression)
-
 tokens = orderOfOperations(tokens)
-
 func = createExpressionTree(tokens).exec()
-
-tbl [{'a': r['a'], 'b': r['b'], 'c': func(a=r['a'], b=r['b'])} for r in tbl]
-
-tbl
-
-[{'a': 1, 'b': 2, 'c': 5.0},{'a': 3, 'b': 4, 'c': 11.0},{'a': 5, 'b': 6, 'c': 17}]
+tbl [{**r, 'c': func(**r)} for r in tbl]
+print(tbl) # [{'a': 1, 'b': 2, 'c': 5.0},{'a': 3, 'b': 4, 'c': 11.0},{'a': 5, 'b': 6, 'c': 17}]
+```
