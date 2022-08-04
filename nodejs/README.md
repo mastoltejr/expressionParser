@@ -1,10 +1,16 @@
-# mathExpressionParser
+# expressionParser
 
 Math Expression Parser that works with [ + - * / ^ // ! ] operators, constants [ pi ], functions [ exp, log, ln ], strings ["testString"], and [variables] out of the box and can be expanded to cover more use cases!
 
 ## Motivation
 
 A lot of the math expression parsers I found online didn't quite cover all the use cases I needed as well as were hard to expand upon. With that, I created my own!
+
+## How To Install
+
+```
+npm install expressionParser
+```
 
 ## How To Use
 
@@ -19,10 +25,21 @@ What's great about this approach is say you have a table represented as an array
 **Example in javascript**
 
 ```javascript
-tbl = [{'a': 1, 'b': 2},{'a': 3, 'b': 4},{'a': 5, 'b': 6}]
-expression = '[a]+2*[b]'
-nodes = extractNodes(expression)
-func = createExpressionTree(nodes).exec()
-tbl = tbl.map(row => ({...row, 'c': func(...row)}))
-console.table(tbl) # [{'a': 1, 'b': 2, 'c': 5.0},{'a': 3, 'b': 4, 'c': 11.0},{'a': 5, 'b': 6, 'c': 17}]
+import { extractNodes, createExpressionTree } from 'expressionParser';
+
+tbl = [
+	{ a: 1, b: 2 },
+	{ a: 3, b: 4 },
+	{ a: 5, b: 6 }
+];
+expression = '[a]+2*[b]';
+nodes = extractNodes(expression);
+func = createExpressionTree(nodes).exec();
+tbl = tbl.map((row) => ({ ...row, c: func(...row) }));
+console.table(tbl);
+//  [
+//	    { a: 1, b: 2, c: 5.0 },
+//	    { a: 3, b: 4, c: 11.0 },
+//	    { a: 5, b: 6, c: 17.0 }
+//  ];
 ```
