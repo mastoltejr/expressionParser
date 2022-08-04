@@ -1,5 +1,6 @@
 # %%
-from ast import Pass
+from ast import Pass, operator
+from tokenize import Number
 from typing import Callable, Union, Any, List, Tuple, TypeVar, Generic, Dict
 from enum import Enum
 from math import factorial, log, pi
@@ -12,6 +13,7 @@ ExecResponse = Callable[[Dict[str, PassedData]],
 
 
 class NodeType(Enum):
+    STRING = "STRING"
     VARIABLE = "VARIABLE"
     TOKEN_GROUP = "TOKEN_GROUP"
     OPERATOR = "OPERATOR"
@@ -37,7 +39,18 @@ class Node():
         '{type}: {value}'.format(type=str(self.type), value=str(self.exec()))
 
     def exec(self) -> ExecResponse:
-        return self.value
+        raise Exception("Can not execute on an empty node")
+
+
+class StringNode(Node):
+    type = NodeType.STRING
+
+    def __init__(self, value: Union[str, None] = None):
+        value = re.sub('^\"|\"$', '', value)
+        super().__init__(value)
+
+    def exec(self) -> ExecResponse:
+        return lambda **kwargs: str(self.value)
 
 
 class NumberNode(Node):
@@ -86,11 +99,13 @@ OperatorType = Enum('OperatorType', dict(map(lambda x: x[:2], operators)))
 class OperatorNode(Node):
     type = NodeType.OPERATOR
     operator: OperatorType
+    weight: int = 0
 
     def __init__(self, value):
         super().__init__(value)
         if operatorMap.get(value, None):
             self.operator = OperatorType(value)
+            self.weight = operatorWeightMap[value]
         else:
             raise Exception('Invalid Operator: {op}'.format(op=value))
 
@@ -109,7 +124,7 @@ class OperatorNode(Node):
             return lambda **kwargs: self.node_a.exec()(**kwargs) + self.node_b.exec()(**kwargs)
 
         if self.operator is OperatorType.SUBTRACT:
-            if self.node_a is None:
+            if self.node_a is None or self.node_a.value is None:
                 return lambda **kwargs: -1 * self.node_b.exec()(**kwargs)
             return lambda **kwargs: self.node_a.exec()(**kwargs) - self.node_b.exec()(**kwargs)
 
@@ -216,7 +231,9 @@ class ComparatorNode(Node):
 functions = [
     ('LOG10', 'log10'),
     ('NATURAL_LOG', 'ln'),
+    ('LOG', 'log'),
     ('SQUARE_ROOT', 'sqrt'),
+    ('CHAR_LENGTH', 'nchar')
 ]
 
 functionMap = {v: k for k, v in functions}
@@ -250,141 +267,131 @@ class FunctionNode(Node):
         if self.function is FunctionType.NATURAL_LOG:
             return lambda **kwargs: log(self.arguments[0].exec()(**kwargs))
 
+        if self.function is FunctionType.LOG:
+            return lambda **kwargs: log(self.arguments[0].exec()(**kwargs), self.arguments[1].exec()(**kwargs) if len(self.arguments) > 1 else 10)
+
         if self.function is FunctionType.SQUARE_ROOT:
             return lambda **kwargs: self.arguments[0].exec()(**kwargs) ** 0.5
+
+        if self.function is FunctionType.CHAR_LENGTH:
+            return lambda **kwargs: len(self.arguments[0].exec()(**kwargs))
 
 
 class TokenGroupNode(Node):
     type: NodeType = NodeType.TOKEN_GROUP
-    tokens: List[Tuple[NodeType, str]] = []
 
     def __init__(self, value):
         super().__init__(value)
-        self.tokens = tokenizeExpression(value)
 
     def exec(self) -> ExecResponse:
-        tree = createExpressionTree(self.tokens)
+        tree = createExpressionTree(Node(), extractNodes(self.value))
         return lambda **kwargs: tree.exec()(**kwargs)
 
+    def split(self) -> List[TokenGroupNode]:
+        return [TokenGroupNode(v) for v in re.split(r",\s*(?![^()]*\))", self.value)]
 
-tokenRegex = ("((?<=\[)[a-z_]+(?=\]))"
+
+tokenRegex = ("((?<=\").+(?=\"))"
+              + "|((?<=\[)[a-z_]+(?=\]))"
               + "|(\((?:[^)(]+|\((?:[^)(]+|\([^)(]*\))*\))*\))"
               + "|(==|!=|<=|<|>=|>|\|\||\||&&|&)"
-              + "|([^a-z0-9\[\]\(\)]+)"
               + "|([a-z][a-z_0-9]+(?=\())"
               + "|([a-z][a-z_0-9]+)"
-              + "|([0-9.]+)")
+              + "|([0-9.]+)"
+              + "|([^a-z0-9\[\]\(\)\"\s]+)")
 
 nodeTypes = {
-    1: NodeType.VARIABLE,
-    2: NodeType.TOKEN_GROUP,
-    3: NodeType.COMPARATOR,
-    4: NodeType.OPERATOR,
+    1: NodeType.STRING,
+    2: NodeType.VARIABLE,
+    3: NodeType.TOKEN_GROUP,
+    4: NodeType.COMPARATOR,
     5: NodeType.FUNCTION,
     6: NodeType.CONSTANT,
-    7: NodeType.NUMBER
+    7: NodeType.NUMBER,
+    8: NodeType.OPERATOR,
 }
 
 
-def tokenizeExpression(expression: str) -> List[Tuple[NodeType, str]]:
-    expression = expression.replace(' ', '')
+def createToken(t: NodeType, v: str) -> Node:
+    if t is NodeType.STRING:
+        return StringNode(v)
+    elif t is NodeType.VARIABLE:
+        return VariableNode(v)
+    elif t is NodeType.TOKEN_GROUP:
+        return TokenGroupNode(v)
+    elif t is NodeType.COMPARATOR:
+        return ComparatorNode(v)
+    elif t is NodeType.OPERATOR:
+        return OperatorNode(v)
+    elif t is NodeType.FUNCTION:
+        return FunctionNode(v)
+    elif t is NodeType.CONSTANT:
+        return ConstantNode(v)
+    elif t is NodeType.NUMBER:
+        return NumberNode(v)
+    else:
+        return Node(v)
+
+
+def extractNodes(expression: str) -> List[Node]:
     matches = re.finditer(tokenRegex, expression, re.MULTILINE | re.IGNORECASE)
-    tokens = []
+    nodes = []
     for match in matches:
-        # print(match.groups())
         for groupNum, group in enumerate(match.groups(), start=1):
             if group:
-                tokens.append((nodeTypes[groupNum], expression[match.start(
-                    groupNum):match.end(groupNum)].lower()))
-    return tokens
+                value = expression[match.start(
+                    groupNum):match.end(groupNum)].lower()
+                if nodeTypes[groupNum] is NodeType.TOKEN_GROUP:
+                    value = re.sub('^\(+|\)+$', '', value)
+                nodes.append(createToken(nodeTypes[groupNum], value))
+    return nodes
 
 
-def combineTokens(tokens, start, end):
-    return '(' + ''.join(t[1] for t in tokens[start:end]) + ')'
+def createExpressionTree(base: Node, nodes: List[Node]):
+    if len(nodes) == 0:
+        return base
 
+    node = nodes.pop(0)
+    if node.type is NodeType.OPERATOR:
+        if base.type is NodeType.OPERATOR and node.weight > base.weight:
+            node.node_a = base.node_b
+            base.node_b = createExpressionTree(node, nodes)
+        else:
+            node.node_a = base
+            return createExpressionTree(node, nodes)
+    elif node.type is NodeType.COMPARATOR:
+        node.node_a = base
+        node.node_b = createExpressionTree(
+            nodes.pop(0) if len(nodes) > 0 else Node(), nodes)
+    elif node.type is NodeType.TOKEN_GROUP:
+        if base.node_a and base.node_a.type is NodeType.FUNCTION:
+            base.node_a.arguments = node.split()
+        elif base.node_b and base.node_b.type is NodeType.FUNCTION:
+            base.node_b.arguments = node.split()
+        elif base.type is NodeType.FUNCTION:
+            base.arguments = node.split()
+        elif base.node_a is None:
+            base.node_a = node
+        elif base.node_b is None:
+            base.node_b = node
+        else:
+            raise Exception('Invalid Syntax')
+    elif base.value is None:
+        base = node
+    elif base.node_a is None:
+        base.node_a = node
+    elif base.node_b is None:
+        base.node_b = node
+    else:
+        raise Exception('Invalid Syntax')
 
-def orderOfOperations(tokens):
-    c = next((i for i in reversed(range(len(tokens)))
-              if tokens[i][0] == NodeType.COMPARATOR), -1)
-    if c >= 0:
-        return [
-            (NodeType.TOKEN_GROUP, combineTokens(tokens, 0, c)),
-            tokens[c],
-            (NodeType.TOKEN_GROUP, combineTokens(tokens, c + 1, len(tokens)))
-        ]
-
-    weights = sorted(set(operatorWeightMap.values()), reverse=True)[:-1]
-    for w in weights:
-        i = 1
-        while i < len(tokens):
-            t, v = tokens[i]
-            if t is NodeType.OPERATOR and operatorWeightMap[v] == w:
-                isSingleOperator = int(v in ['!'])
-                tokenGroup = combineTokens(
-                    tokens, i - 1, i + 2 - isSingleOperator)
-                tokens[i - 1] = (NodeType.TOKEN_GROUP, tokenGroup)
-                tokens = tokens[:i] + tokens[(i + 2 - isSingleOperator):]
-                i -= 1
-            i += 1
-    return tokens
-
-
-def createExpressionTree(tokens: List[Tuple[NodeType, str]]) -> Node:
-    base = Node()
-    for t, v in tokens:
-        if t is NodeType.OPERATOR or t is NodeType.COMPARATOR:
-            nodeClass = OperatorNode if t is NodeType.OPERATOR else ComparatorNode
-            newBase = nodeClass(v)
-            if base.value is None:
-                newBase.node_a = base.node_a
-                newBase.node_b = base.node_b
-            else:
-                newBase = nodeClass(v)
-                newBase.node_a = base
-            base = newBase
-        elif t.value is NodeType.TOKEN_GROUP.value:
-            v = re.sub('^\(+|\)+$', '', v)
-            if base.node_a and base.node_a.type is NodeType.FUNCTION:
-                funcArgumentNodes = [TokenGroupNode(arg) for arg in v.split(
-                    r",\s*(?![^()]*\))")]  # split by commas not in parentheses
-                base.node_a.arguments.extend(funcArgumentNodes)
-            elif base.node_b and base.node_b.type is NodeType.FUNCTION:
-                funcArgumentNodes = [TokenGroupNode(arg) for arg in v.split(
-                    r",\s*(?![^()]*\))")]  # split by commas not in parentheses
-                base.node_b.arguments.extend(funcArgumentNodes)
-            elif base.node_a is None:
-                base.node_a = TokenGroupNode(v)
-            elif base.node_b is None:
-                base.node_b = TokenGroupNode(v)
-            else:
-                raise Exception('Operator can not have more than 2 children')
-        else:  # Number Function Constant Variable
-            nodeClass = NumberNode
-            if t is NodeType.FUNCTION:
-                nodeClass = FunctionNode
-            elif t is NodeType.VARIABLE:
-                nodeClass = VariableNode
-            elif t is NodeType.CONSTANT:
-                nodeClass = ConstantNode
-
-            if base.value is None:
-                base = nodeClass(v)
-            elif base.node_a is None:
-                base.node_a = nodeClass(v)
-            elif base.node_b is None:
-                base.node_b = nodeClass(v)
-            else:
-                raise Exception('Operator can not have more than 2 children')
-
-    return base
+    return createExpressionTree(base, nodes)
 
 
 # %%
-expression = '0 < 2 && 5'
-tokens = tokenizeExpression(expression)
-print(tokens)
-tokens = orderOfOperations(tokens)
-print(tokens)
-tree = createExpressionTree(tokens)
+expression = '4 + 3'
+nodes = extractNodes(expression)
+print(nodes)
+tree = createExpressionTree(Node(), nodes)
 tree.exec()()
 # %%
