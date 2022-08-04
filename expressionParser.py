@@ -1,10 +1,10 @@
 # %%
-from ast import Pass, operator
-from tokenize import Number
-from typing import Callable, Union, Any, List, Tuple, TypeVar, Generic, Dict
+from __future__ import annotations
+from typing import Callable, Union, List, Dict
 from enum import Enum
 from math import factorial, log, pi
-from __future__ import annotations
+from datetime import datetime, timedelta
+from dateutil.relativedelta  import *
 import re
 
 PassedData = Union[float, int, str, bool, None]
@@ -31,9 +31,6 @@ class Node():
 
     def __init__(self, value: Union[str, None] = None):
         self.value = value
-
-    def __str__(self):
-        return self.__str__
 
     def __str__(self):
         '{type}: {value}'.format(type=str(self.type), value=str(self.exec()))
@@ -229,16 +226,28 @@ class ComparatorNode(Node):
 
 # TODO work out comma spaced argument functions
 functions = [
+    ('TODAY','today'),
+    ('AS_DATE','asDate'),
+    ('SECONDS', 'seconds'),
+    ('MINUTES', 'minutes'),
+    ('HOURS','hours'),
+    ('DAYS', 'days'),
+    ('WEEKS','weeks'),
+    ('MONTHS','months'),
+    ('YEARS','years'),
+    ('SUM','sum'),
+    ('AVG','avg'),
     ('LOG10', 'log10'),
     ('NATURAL_LOG', 'ln'),
     ('LOG', 'log'),
     ('SQUARE_ROOT', 'sqrt'),
-    ('CHAR_LENGTH', 'nchar')
+    ('CHAR_LENGTH', 'nchar'),
+    ('NULL','isNull'),
+    ('IN','in')
 ]
 
 functionMap = {v: k for k, v in functions}
 FunctionType = Enum('FunctionType', dict(functions))
-
 
 class FunctionNode(Node):
     type: NodeType = NodeType.FUNCTION
@@ -254,12 +263,46 @@ class FunctionNode(Node):
                 'Invalid Function: {function}'.format(function=value))
 
     def __str__(self):
-        '{function}({node_a})'.format(
-            node_a=str(self.node_a), function=self.function)
+        '{function}({arguments})'.format(
+            arguments=str(self.arguments), function=self.function)
 
     def exec(self) -> ExecResponse:
+
+        if self.function is FunctionType.TODAY:
+            return lambda : datetime.now()
+
         if len(self.arguments) == 0:
             raise Exception("Function argument is None")
+
+        if self.function is FunctionType.AS_DATE:
+            return lambda **kwargs: datetime.strptime(self.arguments[0].exec()(**kwargs),self.arguments[1].exec()(**kwargs) if len(self.arguments) > 1 else '%m/%d/%Y')
+        
+        if self.function is FunctionType.SECONDS:
+            return lambda **kwargs: timedelta(seconds=self.arguments[0].exec()(**kwargs))
+        
+        if self.function is FunctionType.MINUTES:
+            return lambda **kwargs: timedelta(minutes=self.arguments[0].exec()(**kwargs))
+        
+        if self.function is FunctionType.HOURS:
+            return lambda **kwargs: timedelta(hours=self.arguments[0].exec()(**kwargs))
+        
+        if self.function is FunctionType.DAYS:
+            return lambda **kwargs: timedelta(days=self.arguments[0].exec()(**kwargs))
+        
+        if self.function is FunctionType.WEEKS:
+            return lambda **kwargs: timedelta(weeks=self.arguments[0].exec()(**kwargs))
+        
+        if self.function is FunctionType.MONTHS:
+            return lambda **kwargs: relativedelta(months=self.arguments[0].exec()(**kwargs))
+        
+        if self.function is FunctionType.YEARS:
+            return lambda **kwargs: relativedelta(years=self.arguments[0].exec()(**kwargs))
+
+        if self.function is FunctionType.SUM:
+            return lambda **kwargs: sum(map(lambda a: a.exec()(**kwargs),self.arguments))
+        
+        if self.function is FunctionType.AVG:
+            return lambda **kwargs: sum(map(lambda a: a.exec()(**kwargs),self.arguments))/(len(self.arguments) or 1)
 
         if self.function is FunctionType.LOG10:
             return lambda **kwargs: log(self.arguments[0].exec()(**kwargs), 10)
@@ -275,6 +318,12 @@ class FunctionNode(Node):
 
         if self.function is FunctionType.CHAR_LENGTH:
             return lambda **kwargs: len(self.arguments[0].exec()(**kwargs))
+        
+        if self.function is FunctionType.NULL:
+            return lambda **kwargs: self.arguments[0].exec()(**kwargs) in [None,''] 
+        
+        if self.function is FunctionType.IN:
+            return lambda **kwargs: self.arguments[0].exec()(**kwargs) in map(lambda a: a.exec()(**kwargs),self.arguments[1:]) 
 
 
 class TokenGroupNode(Node):
@@ -340,9 +389,11 @@ def extractNodes(expression: str) -> List[Node]:
         for groupNum, group in enumerate(match.groups(), start=1):
             if group:
                 value = expression[match.start(
-                    groupNum):match.end(groupNum)].lower()
+                    groupNum):match.end(groupNum)]
                 if nodeTypes[groupNum] is NodeType.TOKEN_GROUP:
                     value = re.sub('^\(+|\)+$', '', value)
+                    if value == '':
+                        continue
                 nodes.append(createToken(nodeTypes[groupNum], value))
     return nodes
 
@@ -364,10 +415,10 @@ def createExpressionTree(base: Node, nodes: List[Node]):
         node.node_b = createExpressionTree(
             nodes.pop(0) if len(nodes) > 0 else Node(), nodes)
     elif node.type is NodeType.TOKEN_GROUP:
-        if base.node_a and base.node_a.type is NodeType.FUNCTION:
-            base.node_a.arguments = node.split()
-        elif base.node_b and base.node_b.type is NodeType.FUNCTION:
+        if base.node_b and base.node_b.type is NodeType.FUNCTION:
             base.node_b.arguments = node.split()
+        elif base.node_a and base.node_a.type is NodeType.FUNCTION:
+            base.node_a.arguments = node.split()
         elif base.type is NodeType.FUNCTION:
             base.arguments = node.split()
         elif base.node_a is None:
@@ -389,9 +440,9 @@ def createExpressionTree(base: Node, nodes: List[Node]):
 
 
 # %%
-expression = '4 + 3'
+expression = 'asDate("1995-02-14","%Y-%m-%d") + months(2)'
 nodes = extractNodes(expression)
 print(nodes)
 tree = createExpressionTree(Node(), nodes)
-tree.exec()()
+print(tree.exec()())
 # %%
