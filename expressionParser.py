@@ -1,4 +1,3 @@
-# %%
 from __future__ import annotations
 from typing import Callable, Union, List, Dict
 from enum import Enum
@@ -398,7 +397,7 @@ def extractNodes(expression: str) -> List[Node]:
     return nodes
 
 
-def createExpressionTree(base: Node, nodes: List[Node]):
+def createExpressionTree(base: Node = Node(), nodes: List[Node] = []) -> Node:
     if len(nodes) == 0:
         return base
 
@@ -437,12 +436,3 @@ def createExpressionTree(base: Node, nodes: List[Node]):
         raise Exception('Invalid Syntax')
 
     return createExpressionTree(base, nodes)
-
-
-# %%
-expression = 'asDate("1995-02-14","%Y-%m-%d") + months(2)'
-nodes = extractNodes(expression)
-print(nodes)
-tree = createExpressionTree(Node(), nodes)
-print(tree.exec()())
-# %%

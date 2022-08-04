@@ -1,0 +1,5 @@
+/__pycache__
+/build
+/dist
+/expressionParser.egg-info
+https://towardsdatascience.com/how-to-publish-a-python-package-to-pypi-7be9dd5d6dcd
