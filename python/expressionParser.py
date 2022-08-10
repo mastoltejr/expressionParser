@@ -3,7 +3,7 @@ from typing import Callable, Union, List, Dict
 from enum import Enum
 from math import factorial, log, pi
 from datetime import datetime, timedelta
-from dateutil.relativedelta  import *
+from dateutil.relativedelta import *
 import re
 
 PassedData = Union[float, int, str, bool, None]
@@ -192,21 +192,6 @@ class ComparatorNode(Node):
         if self.comparator is ComparatorType.NOT_EQUAL:
             return lambda **kwargs: self.node_a.exec()(**kwargs) != self.node_b.exec()(**kwargs)
 
-        if self.comparator is ComparatorType.LT:
-            return lambda **kwargs: self.node_a.exec()(**kwargs) < self.node_b.exec()(**kwargs)
-
-        if self.comparator is ComparatorType.LTE:
-            return lambda **kwargs: self.node_a.exec()(**kwargs) <= self.node_b.exec()(**kwargs)
-
-        if self.comparator is ComparatorType.GT:
-            return lambda **kwargs: self.node_a.exec()(**kwargs) > self.node_b.exec()(**kwargs)
-
-        if self.comparator is ComparatorType.GTE:
-            return lambda **kwargs: self.node_a.exec()(**kwargs) >= self.node_b.exec()(**kwargs)
-
-        if self.comparator is ComparatorType.NOT_EQUAL:
-            return lambda **kwargs: self.node_a.exec()(**kwargs) >= self.node_b.exec()(**kwargs)
-
         if self.comparator is ComparatorType.OR:
             return lambda **kwargs: self.node_a.exec()(**kwargs) or self.node_b.exec()(**kwargs)
 
@@ -219,34 +204,50 @@ class ComparatorNode(Node):
         if self.comparator is ComparatorType.STRICT_AND:
             return lambda **kwargs: bool(self.node_a.exec()(**kwargs)) and bool(self.node_b.exec()(**kwargs))
 
+        if self.node_a.value is None or self.node_b.value is None:
+            return lambda: False
+
+        if self.comparator is ComparatorType.LT:
+            return lambda **kwargs: self.node_a.exec()(**kwargs) < self.node_b.exec()(**kwargs)
+
+        if self.comparator is ComparatorType.LTE:
+            return lambda **kwargs: self.node_a.exec()(**kwargs) <= self.node_b.exec()(**kwargs)
+
+        if self.comparator is ComparatorType.GT:
+            return lambda **kwargs: self.node_a.exec()(**kwargs) > self.node_b.exec()(**kwargs)
+
+        if self.comparator is ComparatorType.GTE:
+            return lambda **kwargs: self.node_a.exec()(**kwargs) >= self.node_b.exec()(**kwargs)
+
         raise Exception('Invalid comparator {comparator}'.format(
             comparator=self.comparator))
 
 
 # TODO work out comma spaced argument functions
 functions = [
-    ('TODAY','today'),
-    ('AS_DATE','asDate'),
+    ('TODAY', 'today'),
+    ('AS_DATE', 'asDate'),
     ('SECONDS', 'seconds'),
     ('MINUTES', 'minutes'),
-    ('HOURS','hours'),
+    ('HOURS', 'hours'),
     ('DAYS', 'days'),
-    ('WEEKS','weeks'),
-    ('MONTHS','months'),
-    ('YEARS','years'),
-    ('SUM','sum'),
-    ('AVG','avg'),
+    ('WEEKS', 'weeks'),
+    ('MONTHS', 'months'),
+    ('YEARS', 'years'),
+    ('SUM', 'sum'),
+    ('AVG', 'avg'),
     ('LOG10', 'log10'),
     ('NATURAL_LOG', 'ln'),
     ('LOG', 'log'),
     ('SQUARE_ROOT', 'sqrt'),
     ('CHAR_LENGTH', 'nchar'),
-    ('NULL','isNull'),
-    ('IN','in')
+    ('NULL', 'isNull'),
+    ('IN', 'in')
 ]
 
 functionMap = {v: k for k, v in functions}
 FunctionType = Enum('FunctionType', dict(functions))
+
 
 class FunctionNode(Node):
     type: NodeType = NodeType.FUNCTION
@@ -268,40 +269,40 @@ class FunctionNode(Node):
     def exec(self) -> ExecResponse:
 
         if self.function is FunctionType.TODAY:
-            return lambda : datetime.now()
+            return lambda: datetime.now()
 
         if len(self.arguments) == 0:
             raise Exception("Function argument is None")
 
         if self.function is FunctionType.AS_DATE:
-            return lambda **kwargs: datetime.strptime(self.arguments[0].exec()(**kwargs),self.arguments[1].exec()(**kwargs) if len(self.arguments) > 1 else '%m/%d/%Y')
-        
+            return lambda **kwargs: datetime.strptime(self.arguments[0].exec()(**kwargs), self.arguments[1].exec()(**kwargs) if len(self.arguments) > 1 else '%m/%d/%Y')
+
         if self.function is FunctionType.SECONDS:
             return lambda **kwargs: timedelta(seconds=self.arguments[0].exec()(**kwargs))
-        
+
         if self.function is FunctionType.MINUTES:
             return lambda **kwargs: timedelta(minutes=self.arguments[0].exec()(**kwargs))
-        
+
         if self.function is FunctionType.HOURS:
             return lambda **kwargs: timedelta(hours=self.arguments[0].exec()(**kwargs))
-        
+
         if self.function is FunctionType.DAYS:
             return lambda **kwargs: timedelta(days=self.arguments[0].exec()(**kwargs))
-        
+
         if self.function is FunctionType.WEEKS:
             return lambda **kwargs: timedelta(weeks=self.arguments[0].exec()(**kwargs))
-        
+
         if self.function is FunctionType.MONTHS:
             return lambda **kwargs: relativedelta(months=self.arguments[0].exec()(**kwargs))
-        
+
         if self.function is FunctionType.YEARS:
             return lambda **kwargs: relativedelta(years=self.arguments[0].exec()(**kwargs))
 
         if self.function is FunctionType.SUM:
-            return lambda **kwargs: sum(map(lambda a: a.exec()(**kwargs),self.arguments))
-        
+            return lambda **kwargs: sum(map(lambda a: a.exec()(**kwargs), self.arguments))
+
         if self.function is FunctionType.AVG:
-            return lambda **kwargs: sum(map(lambda a: a.exec()(**kwargs),self.arguments))/(len(self.arguments) or 1)
+            return lambda **kwargs: sum(map(lambda a: a.exec()(**kwargs), self.arguments)) / (len(self.arguments) or 1)
 
         if self.function is FunctionType.LOG10:
             return lambda **kwargs: log(self.arguments[0].exec()(**kwargs), 10)
@@ -317,12 +318,12 @@ class FunctionNode(Node):
 
         if self.function is FunctionType.CHAR_LENGTH:
             return lambda **kwargs: len(self.arguments[0].exec()(**kwargs))
-        
+
         if self.function is FunctionType.NULL:
-            return lambda **kwargs: self.arguments[0].exec()(**kwargs) in [None,''] 
-        
+            return lambda **kwargs: self.arguments[0].exec()(**kwargs) in [None, '']
+
         if self.function is FunctionType.IN:
-            return lambda **kwargs: self.arguments[0].exec()(**kwargs) in map(lambda a: a.exec()(**kwargs),self.arguments[1:]) 
+            return lambda **kwargs: self.arguments[0].exec()(**kwargs) in map(lambda a: a.exec()(**kwargs), self.arguments[1:])
 
 
 class TokenGroupNode(Node):
@@ -340,7 +341,7 @@ class TokenGroupNode(Node):
 
 
 tokenRegex = ("((?<=\").+(?=\"))"
-              + "|((?<=\[)[a-z_]+(?=\]))"
+              + "|((?<=\[)[a-z][a-z_0-9]+(?=\]))"
               + "|(\((?:[^)(]+|\((?:[^)(]+|\([^)(]*\))*\))*\))"
               + "|(==|!=|<=|<|>=|>|\|\||\||&&|&)"
               + "|([a-z][a-z_0-9]+(?=\())"
@@ -397,7 +398,10 @@ def extractNodes(expression: str) -> List[Node]:
     return nodes
 
 
-def createExpressionTree(base: Node = Node(), nodes: List[Node] = []) -> Node:
+def createExpressionTree(base: Node = Node(), baseNodes: List[Node] = [], expression: Union[str, None] = None) -> Node:
+    if expression is not None:
+        baseNodes = extractNodes(expression)
+    nodes = baseNodes.copy()
     if len(nodes) == 0:
         return base
 
@@ -411,8 +415,9 @@ def createExpressionTree(base: Node = Node(), nodes: List[Node] = []) -> Node:
             return createExpressionTree(node, nodes)
     elif node.type is NodeType.COMPARATOR:
         node.node_a = base
+        base = node
         node.node_b = createExpressionTree(
-            nodes.pop(0) if len(nodes) > 0 else Node(), nodes)
+            base=nodes.pop(0) if len(nodes) > 0 else Node(), baseNodes=nodes)
     elif node.type is NodeType.TOKEN_GROUP:
         if base.node_b and base.node_b.type is NodeType.FUNCTION:
             base.node_b.arguments = node.split()
@@ -435,4 +440,4 @@ def createExpressionTree(base: Node = Node(), nodes: List[Node] = []) -> Node:
     else:
         raise Exception('Invalid Syntax')
 
-    return createExpressionTree(base, nodes)
+    return createExpressionTree(base=base, baseNodes=nodes)
