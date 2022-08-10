@@ -11,6 +11,12 @@ ExecResponse = Callable[[Dict[str, PassedData]],
                         Callable[[Dict[str, PassedData]], float]]
 
 
+def falseOnNone(a, b, f):
+    if a is None or b is None:
+        return False
+    return f(a, b)
+
+
 class NodeType(Enum):
     STRING = "STRING"
     VARIABLE = "VARIABLE"
@@ -207,20 +213,33 @@ class ComparatorNode(Node):
         if self.node_a.value is None or self.node_b.value is None:
             return lambda: False
 
-        try:
-            if self.comparator is ComparatorType.LT:
-                return lambda **kwargs: self.node_a.exec()(**kwargs) < self.node_b.exec()(**kwargs)
+        if self.comparator is ComparatorType.LT:
+            return lambda **kwargs: falseOnNone(
+                self.node_a.exec()(**kwargs),
+                self.node_b.exec()(**kwargs),
+                lambda a, b: a < b
+            )
 
-            if self.comparator is ComparatorType.LTE:
-                return lambda **kwargs: self.node_a.exec()(**kwargs) <= self.node_b.exec()(**kwargs)
+        if self.comparator is ComparatorType.LTE:
+            return lambda **kwargs: falseOnNone(
+                self.node_a.exec()(**kwargs),
+                self.node_b.exec()(**kwargs),
+                lambda a, b: a <= b
+            )
 
-            if self.comparator is ComparatorType.GT:
-                return lambda **kwargs: self.node_a.exec()(**kwargs) > self.node_b.exec()(**kwargs)
+        if self.comparator is ComparatorType.GT:
+            return lambda **kwargs: falseOnNone(
+                self.node_a.exec()(**kwargs),
+                self.node_b.exec()(**kwargs),
+                lambda a, b: a > b
+            )
 
-            if self.comparator is ComparatorType.GTE:
-                return lambda **kwargs: self.node_a.exec()(**kwargs) >= self.node_b.exec()(**kwargs)
-        except TypeError:
-            return False
+        if self.comparator is ComparatorType.GTE:
+            return lambda **kwargs: falseOnNone(
+                self.node_a.exec()(**kwargs),
+                self.node_b.exec()(**kwargs),
+                lambda a, b: a >= b
+            )
 
         raise Exception('Invalid comparator {comparator}'.format(
             comparator=self.comparator))
