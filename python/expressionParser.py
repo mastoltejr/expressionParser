@@ -207,17 +207,20 @@ class ComparatorNode(Node):
         if self.node_a.value is None or self.node_b.value is None:
             return lambda: False
 
-        if self.comparator is ComparatorType.LT:
-            return lambda **kwargs: self.node_a.exec()(**kwargs) < self.node_b.exec()(**kwargs)
+        try:
+            if self.comparator is ComparatorType.LT:
+                return lambda **kwargs: self.node_a.exec()(**kwargs) < self.node_b.exec()(**kwargs)
 
-        if self.comparator is ComparatorType.LTE:
-            return lambda **kwargs: self.node_a.exec()(**kwargs) <= self.node_b.exec()(**kwargs)
+            if self.comparator is ComparatorType.LTE:
+                return lambda **kwargs: self.node_a.exec()(**kwargs) <= self.node_b.exec()(**kwargs)
 
-        if self.comparator is ComparatorType.GT:
-            return lambda **kwargs: self.node_a.exec()(**kwargs) > self.node_b.exec()(**kwargs)
+            if self.comparator is ComparatorType.GT:
+                return lambda **kwargs: self.node_a.exec()(**kwargs) > self.node_b.exec()(**kwargs)
 
-        if self.comparator is ComparatorType.GTE:
-            return lambda **kwargs: self.node_a.exec()(**kwargs) >= self.node_b.exec()(**kwargs)
+            if self.comparator is ComparatorType.GTE:
+                return lambda **kwargs: self.node_a.exec()(**kwargs) >= self.node_b.exec()(**kwargs)
+        except TypeError:
+            return False
 
         raise Exception('Invalid comparator {comparator}'.format(
             comparator=self.comparator))
