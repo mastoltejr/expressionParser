@@ -25,3 +25,6 @@ dev = []
 
 [project.urls]
 Homepage = "https://github.com/mastoltejr/expressionParser"
+
+# python setup.py sdist bdist_wheel
+# pip install -e .

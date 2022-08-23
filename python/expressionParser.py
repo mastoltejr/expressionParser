@@ -264,7 +264,8 @@ functions = [
     ('SQUARE_ROOT', 'sqrt'),
     ('CHAR_LENGTH', 'nchar'),
     ('NULL', 'isNull'),
-    ('IN', 'in')
+    ('IN', 'in'),
+    ('ABS', 'abs')
 ]
 
 functionMap = {v: k for k, v in functions}
@@ -347,6 +348,9 @@ class FunctionNode(Node):
         if self.function is FunctionType.IN:
             return lambda **kwargs: self.arguments[0].exec()(**kwargs) in map(lambda a: a.exec()(**kwargs), self.arguments[1:])
 
+        if self.function is FunctionType.ABS:
+            return lambda **kwargs: abs(self.arguments[0].exec()(**kwargs))
+
 
 class TokenGroupNode(Node):
     type: NodeType = NodeType.TOKEN_GROUP
@@ -355,19 +359,19 @@ class TokenGroupNode(Node):
         super().__init__(value)
 
     def exec(self) -> ExecResponse:
-        tree = createExpressionTree(Node(), extractNodes(self.value))
+        tree = createExpressionTree(Node(), expression=self.value)
         return lambda **kwargs: tree.exec()(**kwargs)
 
     def split(self) -> List[TokenGroupNode]:
         return [TokenGroupNode(v) for v in re.split(r",\s*(?![^()]*\))", self.value)]
 
 
-tokenRegex = ("((?<=\").+(?=\"))"
-              + "|((?<=\[)[a-z][a-z_0-9]+(?=\]))"
+tokenRegex = ("((?<=\").*(?=\"))"
+              + "|((?<=\[)[a-z][a-z_0-9]*(?=\]))"
               + "|(\((?:[^)(]+|\((?:[^)(]+|\([^)(]*\))*\))*\))"
               + "|(==|!=|<=|<|>=|>|\|\||\||&&|&)"
-              + "|([a-z][a-z_0-9]+(?=\())"
-              + "|([a-z][a-z_0-9]+)"
+              + "|([a-z][a-z_0-9]*(?=\())"
+              + "|([a-z][a-z_0-9]*)"
               + "|([0-9.]+)"
               + "|([^a-z0-9\[\]\(\)\"\s]+)")
 
