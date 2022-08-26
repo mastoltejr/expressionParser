@@ -88,7 +88,7 @@ operators = [
     ('MULTIPLY', '*', 1),
     ('DIVIDE', '/', 1),
     ('MODULUS', '%', 1),
-    ('INT_DIVIDE', '//', 1),
+    ('INT_DIVIDE', '\\', 1),
     ('FACTORIAL', '!', 3),
     ('EXPONENTIAL', '^', 2)
 ]
@@ -108,6 +108,8 @@ class OperatorNode(Node):
         if operatorMap.get(value, None):
             self.operator = OperatorType(value)
             self.weight = operatorWeightMap[value]
+            if value == '!':
+                self.node_b = 0
         else:
             raise Exception('Invalid Operator: {op}'.format(op=value))
 
@@ -131,9 +133,7 @@ class OperatorNode(Node):
             return lambda **kwargs: self.node_a.exec()(**kwargs) - self.node_b.exec()(**kwargs)
 
         if self.operator is OperatorType.FACTORIAL:
-            if self.node_b is None:
-                return lambda **kwargs: factorial(self.node_a.exec()(**kwargs))
-            raise Exception('Factorial Operand can not have second target')
+            return lambda **kwargs: factorial(int(self.node_a.exec()(**kwargs)))
 
         if self.node_a is None or self.node_b is None:
             raise Exception("One target on opperand is None")
@@ -366,14 +366,14 @@ class TokenGroupNode(Node):
         return [TokenGroupNode(v) for v in re.split(r",\s*(?![^()]*\))", self.value)]
 
 
-tokenRegex = ("((?<=\").*(?=\"))"
-              + "|((?<=\[)[a-z][a-z_0-9]*(?=\]))"
-              + "|(\((?:[^)(]+|\((?:[^)(]+|\([^)(]*\))*\))*\))"
-              + "|(==|!=|<=|<|>=|>|\|\||\||&&|&)"
-              + "|([a-z][a-z_0-9]*(?=\())"
-              + "|([a-z][a-z_0-9]*)"
-              + "|([0-9.]+)"
-              + "|([^a-z0-9\[\]\(\)\"\s]+)")
+tokenRegex = (r"((?<=\").*(?=\"))"
+              + r"|((?<=\[)[a-z][a-z_0-9]*(?=\]))"
+              + r"|(\((?:[^)(]+|\((?:[^)(]+|\([^)(]*\))*\))*\))"
+              + r"|(==|!=|<=|<|>=|>|\|\||\||&&|&)"
+              + r"|([a-z][a-z_0-9]*(?=\())"
+              + r"|([a-z][a-z_0-9]*)"
+              + r"|([0-9.]+)"
+              + r"|([^a-z0-9\[\]\(\)\"\s])")
 
 nodeTypes = {
     1: NodeType.STRING,
@@ -417,7 +417,7 @@ def extractNodes(expression: str) -> List[Node]:
                 value = expression[match.start(
                     groupNum):match.end(groupNum)]
                 if nodeTypes[groupNum] is NodeType.TOKEN_GROUP:
-                    value = re.sub('^\(+|\)+$', '', value)
+                    value = re.sub(r'^\(+|\)+$', '', value)
                     if value == '':
                         continue
                 nodes.append(createToken(nodeTypes[groupNum], value))
@@ -432,10 +432,16 @@ def createExpressionTree(base: Node = Node(), baseNodes: List[Node] = [], expres
         return base
 
     node = nodes.pop(0)
+    # print('Base', base.value)
+    # print('Node', node.value)
+    # print('Nodes', nodes)
     if node.type is NodeType.OPERATOR:
         if base.type is NodeType.OPERATOR and node.weight > base.weight:
             node.node_a = base.node_b
-            base.node_b = createExpressionTree(node, nodes)
+            # don't pull in 2nd opperand for factorials
+            t = int(node.value != '!')
+            base.node_b = createExpressionTree(node, baseNodes=nodes[:t])
+            nodes = nodes[t:]
         else:
             node.node_a = base
             return createExpressionTree(node, nodes)
@@ -456,7 +462,8 @@ def createExpressionTree(base: Node = Node(), baseNodes: List[Node] = [], expres
         elif base.node_b is None:
             base.node_b = node
         else:
-            raise Exception('Invalid Syntax')
+            raise Exception('Invalid Expression Syntax at {t} {n}'.format(
+                t=node.type, n=node.value))
     elif base.value is None:
         base = node
     elif base.node_a is None:
@@ -464,6 +471,7 @@ def createExpressionTree(base: Node = Node(), baseNodes: List[Node] = [], expres
     elif base.node_b is None:
         base.node_b = node
     else:
-        raise Exception('Invalid Syntax')
+        raise Exception('Invalid Expression Syntax at {t} {n}'.format(
+            t=node.type, n=node.value))
 
     return createExpressionTree(base=base, baseNodes=nodes)
