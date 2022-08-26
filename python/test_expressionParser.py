@@ -1,4 +1,4 @@
-from expressionParser import Node, createExpressionTree, extractNodes
+from expressionParser import createExpressionTree
 
 
 def test_pemdas():
