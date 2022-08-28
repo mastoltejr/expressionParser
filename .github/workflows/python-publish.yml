@@ -2,34 +2,34 @@ name: Publish Python 🐍 distributions 📦 to PyPI and TestPyPI
 
 on:
   push:
-    branches: [ "root" ]
-    
+    branches: ['root']
+
 jobs:
   build-n-publish:
     name: Build and publish Python 🐍 distributions 📦 to PyPI and TestPyPI
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v3
-      with:
-        python-version: "3.10"
-    - name: Install dependencies
-      working-directory: ./python
-      run: >-
-        python -m pip install -r requirements.txt --user
-        python -m pip install build
-    - name: Build package
-      working-directory: ./python
-      run: python -m build
-    - name: Publish TEST package
-      uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
-      with:
-        user: mastoltejr
-        password: ${{ secrets.TEST_PYPI_TOKEN }}
-        repository_url: https://test.pypi.org/legacy/
-    - name: Publish PROD package
-      uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
-      with:
-        user: mastoltejr
-        password: ${{ secrets.PYPI_TOKEN }}
+      - uses: actions/checkout@master
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        working-directory: ./python
+        run: |
+          python -m pip install -r requirements.txt --user
+          python -m pip install build
+      - name: Build package
+        working-directory: ./python
+        run: python -m build
+      - name: Publish TEST package
+        uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
+        with:
+          user: mastoltejr
+          password: ${{ secrets.TEST_PYPI_TOKEN }}
+          repository_url: https://test.pypi.org/legacy/
+      - name: Publish PROD package
+        uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
+        with:
+          user: mastoltejr
+          password: ${{ secrets.PYPI_TOKEN }}
