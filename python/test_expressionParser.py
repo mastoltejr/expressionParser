@@ -8,4 +8,4 @@ def test_pemdas():
 
 def test_comparators():
     assert createExpressionTree(
-        expression='(5*6>=20+5)==(2<=3)') == True
+        expression='(5*6>=20+5)==(2<=3)').exec()() == True
