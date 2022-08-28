@@ -43,6 +43,62 @@ class Node():
     def exec(self) -> ExecResponse:
         raise Exception("Can not execute on an empty node")
 
+    def length(self):
+        return len(self.value or ' ')
+
+    # Display function modified from https://stackoverflow.com/questions/34012886/print-binary-tree-level-by-level-in-python
+    def display(self):
+        lines, *_ = self._display_aux()
+        for line in lines:
+            print(line)
+
+    def _display_aux(self):
+        """Returns list of strings, width, height, and horizontal coordinate of the root."""
+        # No child.
+        if self.node_b is None and self.node_a is None:
+            width = self.length()
+            height = 1
+            middle = width // 2
+            return [self.value], width, height, middle
+
+        # Only left child.
+        if self.node_b is None:
+            lines, n, p, x = self.node_a._display_aux()
+            s = self.value
+            u = self.length()
+            first_line = (x + 1) * ' ' + (n - x - 1) * '_' + s
+            second_line = x * ' ' + '/' + (n - x - 1 + u) * ' '
+            shifted_lines = [line + u * ' ' for line in lines]
+            return [first_line, second_line] + shifted_lines, n + u, p + 2, n + u // 2
+
+        # Only right child.
+        if self.node_a is None:
+            lines, n, p, x = self.node_b._display_aux()
+            s = self.value
+            u = self.length()
+            first_line = s + x * '_' + (n - x) * ' '
+            second_line = (u + x) * ' ' + '\\' + (n - x - 1) * ' '
+            shifted_lines = [u * ' ' + line for line in lines]
+            return [first_line, second_line] + shifted_lines, n + u, p + 2, u // 2
+
+        # Two children.
+        left, n, p, x = self.node_a._display_aux()
+        right, m, q, y = self.node_b._display_aux()
+        s = self.value
+        u = self.length()
+        first_line = (x + 1) * ' ' + (n - x - 1) * \
+            '_' + s + y * '_' + (m - y) * ' '
+        second_line = x * ' ' + '/' + \
+            (n - x - 1 + u + y) * ' ' + '\\' + (m - y - 1) * ' '
+        if p < q:
+            left += [n * ' '] * (q - p)
+        elif q < p:
+            right += [m * ' '] * (p - q)
+        zipped_lines = zip(left, right)
+        lines = [first_line, second_line] + \
+            [a + u * ' ' + b for a, b in zipped_lines]
+        return lines, n + m + u, max(p, q) + 2, n + u // 2
+
 
 class StringNode(Node):
     type = NodeType.STRING
@@ -109,7 +165,7 @@ class OperatorNode(Node):
             self.operator = OperatorType(value)
             self.weight = operatorWeightMap[value]
             if value == '!':
-                self.node_b = 0
+                self.node_b = NumberNode('0')
         else:
             raise Exception('Invalid Operator: {op}'.format(op=value))
 
@@ -435,41 +491,76 @@ def createExpressionTree(base: Node = Node(), baseNodes: List[Node] = [], expres
     # print('Base', base.value)
     # print('Node', node.value)
     # print('Nodes', nodes)
-    if node.type is NodeType.OPERATOR:
-        if base.type is NodeType.OPERATOR and node.weight > base.weight:
-            node.node_a = base.node_b
-            # don't pull in 2nd opperand for factorials
-            t = int(node.value != '!')
-            base.node_b = createExpressionTree(node, baseNodes=nodes[:t])
-            nodes = nodes[t:]
-        else:
-            node.node_a = base
-            return createExpressionTree(node, nodes)
-    elif node.type is NodeType.COMPARATOR:
+    # base.display()
+    # print('===========================')
+    if node.type is NodeType.COMPARATOR:
         node.node_a = base
+        node.node_b = Node()
         base = node
-        node.node_b = createExpressionTree(
-            base=nodes.pop(0) if len(nodes) > 0 else Node(), baseNodes=nodes)
-    elif node.type is NodeType.TOKEN_GROUP:
-        if base.node_b and base.node_b.type is NodeType.FUNCTION:
+    elif base.type is NodeType.COMPARATOR:
+        if node.type is NodeType.OPERATOR:
+            if node.operator is OperatorType.FACTORIAL:
+                if base.node_b.node_b.type is NodeType.OPERATOR:
+                    node.node_a = base.node_b.node_b.node_b
+                    base.node_b.node_b.node_b = node
+                else:
+                    node.node_a = base.node_b.node_b
+                    base.node_b.node_b = node
+            elif base.node_b.type is NodeType.OPERATOR and node.weight > base.node_b.weight:
+                node.node_a = base.node_b.node_b
+                base.node_b.node_b = node
+            elif base.node_b.type is NodeType.OPERATOR and base.node_b.node_b is None and node.operator is OperatorType.SUBTRACT:
+                node.node_a = NumberNode('0')
+                base.node_b.node_b = node
+            else:
+                node.node_a = base.node_b
+                base.node_b = node
+        elif base.node_b.node_b and base.node_b.node_b.type is NodeType.FUNCTION:
+            base.node_b.node_b.arguments = node.split()
+        elif base.node_b.node_a and base.node_b.node_a.type is NodeType.FUNCTION:
+            base.node_b.node_a.arguments = node.split()
+        elif base.node_b.type is NodeType.FUNCTION:
             base.node_b.arguments = node.split()
-        elif base.node_a and base.node_a.type is NodeType.FUNCTION:
-            base.node_a.arguments = node.split()
-        elif base.type is NodeType.FUNCTION:
-            base.arguments = node.split()
-        elif base.node_a is None:
-            base.node_a = node
-        elif base.node_b is None:
+        elif base.node_b.value is None:
             base.node_b = node
+        elif base.node_b.node_a is None:
+            base.node_b.node_a = node
+        elif base.node_b.node_b is None:
+            base.node_b.node_b = node
         else:
             raise Exception('Invalid Expression Syntax at {t} {n}'.format(
                 t=node.type, n=node.value))
+    elif node.type is NodeType.OPERATOR:
+        if node.operator is OperatorType.FACTORIAL:
+            if base.node_b.type is NodeType.OPERATOR:
+                node.node_a = base.node_b.node_b
+                base.node_b.node_b = node
+            else:
+                node.node_a = base.node_b
+                base.node_b = node
+        elif base.type is NodeType.OPERATOR and node.weight > base.weight:
+            node.node_a = base.node_b
+            base.node_b = node
+        elif base.type is NodeType.OPERATOR and base.node_b is None and node.operator is OperatorType.SUBTRACT:
+            node.node_a = NumberNode('0')
+            base.node_b = node
+        else:
+            node.node_a = base
+            base = node
+    elif base.node_b and base.node_b.type is NodeType.FUNCTION and node.type is NodeType.TOKEN_GROUP:
+        base.node_b.arguments = node.split()
+    elif base.node_a and base.node_a.type is NodeType.FUNCTION and node.type is NodeType.TOKEN_GROUP:
+        base.node_a.arguments = node.split()
+    elif base.type is NodeType.FUNCTION and node.type is NodeType.TOKEN_GROUP:
+        base.arguments = node.split()
     elif base.value is None:
         base = node
     elif base.node_a is None:
         base.node_a = node
     elif base.node_b is None:
         base.node_b = node
+    elif base.node_b.node_b is None:
+        base.node_b.node_b = node
     else:
         raise Exception('Invalid Expression Syntax at {t} {n}'.format(
             t=node.type, n=node.value))
