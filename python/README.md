@@ -32,3 +32,20 @@ func = createExpressionTree(expression=expression).exec()
 tbl = [{**r, 'c': func(**r)} for r in tbl]
 print(tbl) # [{'a': 1, 'b': 2, 'c': 5.0},{'a': 3, 'b': 4, 'c': 11.0},{'a': 5, 'b': 6, 'c': 17.0}]
 ```
+
+## Print the Binary Tree Expression
+
+After an expression tree is created using `createExpressionTree()` you can call the `display()` function on the root node of the tree to see the Binary Tree printed out.<br />
+Shoutout to this [Stack Overflow Answer](https://stackoverflow.com/questions/34012886/print-binary-tree-level-by-level-in-python) for the code!
+
+```python
+from callableExpressionParser import createExpressionTree
+expression = '[a]+2*[b]'
+root = createExpressionTree(expression=expression)
+root.display()
+#  +_
+# /  \
+# a  *
+#   / \
+#   2 b
+```
