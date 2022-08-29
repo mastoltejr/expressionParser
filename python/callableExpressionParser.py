@@ -495,41 +495,8 @@ def createExpressionTree(base: Node = Node(), baseNodes: List[Node] = [], expres
     # print('===========================')
     if node.type is NodeType.COMPARATOR:
         node.node_a = base
-        node.node_b = Node()
-        base = node
-    elif base.type is NodeType.COMPARATOR:
-        if node.type is NodeType.OPERATOR:
-            if node.operator is OperatorType.FACTORIAL:
-                if base.node_b.node_b.type is NodeType.OPERATOR:
-                    node.node_a = base.node_b.node_b.node_b
-                    base.node_b.node_b.node_b = node
-                else:
-                    node.node_a = base.node_b.node_b
-                    base.node_b.node_b = node
-            elif base.node_b.type is NodeType.OPERATOR and node.weight > base.node_b.weight:
-                node.node_a = base.node_b.node_b
-                base.node_b.node_b = node
-            elif base.node_b.type is NodeType.OPERATOR and base.node_b.node_b is None and node.operator is OperatorType.SUBTRACT:
-                node.node_a = NumberNode('0')
-                base.node_b.node_b = node
-            else:
-                node.node_a = base.node_b
-                base.node_b = node
-        elif base.node_b.node_b and base.node_b.node_b.type is NodeType.FUNCTION:
-            base.node_b.node_b.arguments = node.split()
-        elif base.node_b.node_a and base.node_b.node_a.type is NodeType.FUNCTION:
-            base.node_b.node_a.arguments = node.split()
-        elif base.node_b.type is NodeType.FUNCTION:
-            base.node_b.arguments = node.split()
-        elif base.node_b.value is None:
-            base.node_b = node
-        elif base.node_b.node_a is None:
-            base.node_b.node_a = node
-        elif base.node_b.node_b is None:
-            base.node_b.node_b = node
-        else:
-            raise Exception('Invalid Expression Syntax at {t} {n}'.format(
-                t=node.type, n=node.value))
+        node.node_b = createExpressionTree(base=Node(), baseNodes=nodes)
+        return node
     elif node.type is NodeType.OPERATOR:
         if node.operator is OperatorType.FACTORIAL:
             if base.node_b.type is NodeType.OPERATOR:
@@ -539,8 +506,11 @@ def createExpressionTree(base: Node = Node(), baseNodes: List[Node] = [], expres
                 node.node_a = base.node_b
                 base.node_b = node
         elif base.type is NodeType.OPERATOR and node.weight > base.weight:
-            node.node_a = base.node_b
-            base.node_b = node
+            pivotBase = base
+            while pivotBase.node_b is not None and pivotBase.node_b.type is NodeType.OPERATOR and node.weight > pivotBase.node_b.weight:
+                pivotBase = pivotBase.node_b
+            node.node_a = pivotBase.node_b
+            pivotBase.node_b = node
         elif base.type is NodeType.OPERATOR and base.node_b is None and node.operator is OperatorType.SUBTRACT:
             node.node_a = NumberNode('0')
             base.node_b = node
@@ -559,10 +529,15 @@ def createExpressionTree(base: Node = Node(), baseNodes: List[Node] = [], expres
         base.node_a = node
     elif base.node_b is None:
         base.node_b = node
-    elif base.node_b.node_b is None:
-        base.node_b.node_b = node
     else:
-        raise Exception('Invalid Expression Syntax at {t} {n}'.format(
-            t=node.type, n=node.value))
+        pivotBase = base.node_b
+        while pivotBase.node_b is not None and pivotBase.node_b.type is NodeType.OPERATOR:
+            pivotBase = pivotBase.node_b
+
+        if pivotBase.node_b is None:
+            pivotBase.node_b = node
+        else:
+            raise Exception('Invalid Expression Syntax at {t} {n}'.format(
+                t=node.type, n=node.value))
 
     return createExpressionTree(base=base, baseNodes=nodes)

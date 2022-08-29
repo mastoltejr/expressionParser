@@ -7,7 +7,7 @@ setuptools.setup(
 
     # This is the name of the package
     name="callableExpressionParser",
-    version="1.0.1",                                    # The initial release version
+    version="1.0.2",                                    # The initial release version
     author="Michael Stolte",                            # Full name of the author
     description="Math Expression Parser that works with [ + - * / ^ // ! ] operators, constants [ pi ], functions [ exp, log, ln ], strings [\"testString\"], and [variables] out of the box and can be expanded to cover more use cases!",
                                                         # Long description read from the the readme file
