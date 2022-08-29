@@ -10,15 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
-      - name: Set up Python 3.10
+      - name: Set up Python 3.10 🐍
         uses: actions/setup-python@v3
         with:
           python-version: '3.10'
-      # - name: Install dependencies
-      #   working-directory: ./python
-      #   run: |
-      #     python -m pip install -r requirements.txt --user
-      #     python -m pip install build
       - name: Install build tools
         working-directory: ./python
         run: |
@@ -28,30 +23,17 @@ jobs:
         working-directory: ./python
         run: |
           python setup.py sdist bdist_wheel
-      - name: Publish Packages
+      - name: Publish TestPyPI Package 📦
         working-directory: ./python
         env:
           TWINE_USERNAME: mastoltejr
           TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
         run: |
           twine upload --repository-url https://test.pypi.org/legacy/ dist/*
-      - name: Publish Packages
+      - name: Publish PyPI Package 📦
         working-directory: ./python
         env:
           TWINE_USERNAME: mastoltejr
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         run: |
           twine upload dist/*
-      # - name: Publish TEST package
-      #   uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
-      #   with:
-      #     user: mastoltejr
-      #     password: ${{ secrets.TEST_PYPI_TOKEN }}
-      #     repository_url: https://test.pypi.org/legacy/
-      #     packages_dir: ./python/dist
-      # - name: Publish PROD package
-      #   uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
-      #   with:
-      #     user: mastoltejr
-      #     password: ${{ secrets.PYPI_TOKEN }}
-      #     packages_dir: ./python/dist
