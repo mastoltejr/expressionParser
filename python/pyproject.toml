@@ -3,8 +3,8 @@ requires      = ["setuptools>=61.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "expressionParser"
-version = "1.0.2"
+name = "callableExpressionParser"
+version = "1.0.0"
 description = "Math Expression Parser that works with [ + - * / ^ // ! ] operators, constants [ pi ], functions [ exp, log, ln ], strings [\"testString\"], and [variables] out of the box and can be expanded to cover more use cases!"
 readme = "README.md"
 authors = [{ name = "Michael Stolte", email = "michael@stolte.us" }]
