@@ -28,8 +28,10 @@ jobs:
       #     user: mastoltejr
       #     password: ${{ secrets.TEST_PYPI_TOKEN }}
       #     repository_url: https://test.pypi.org/legacy/
+      #     packages_dir: ./python/dist
       - name: Publish PROD package
         uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
         with:
           user: mastoltejr
           password: ${{ secrets.PYPI_TOKEN }}
+          packages_dir: ./python/dist
